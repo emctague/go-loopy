@@ -1,5 +1,8 @@
 # go-loopy
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/emctague/go-loopy)](https://goreportcard.com/report/github.com/emctague/go-loopy)
+![GitHub](https://img.shields.io/github/license/emctague/go-loopy?style=flat-square)
+
 This is a strange, overly-complicated experiment!
 
 `go-loopy` is essentially a game engine and simple game with an ECS architecture.
