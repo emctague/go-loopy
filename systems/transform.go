@@ -1,15 +1,18 @@
-package main
+package systems
 
-import "log"
+import (
+	"github.com/emctague/go-loopy/ecs"
+	"log"
+)
 
-// Represents the position of some entity
+// Transform is a component which represents the position of some entity.
 type Transform struct {
 	X        float64
 	Y        float64
 	ParentID uint64 // This transform will follow all the same movements as its parent. Set to 0 for 'no parent'.
 }
 
-// Represents a change in the position of an entity.
+// TransformEvent represents a change in the position of an entity.
 // This may then fire transform events for any transforms which use the given entity as a parent.
 type TransformEvent struct {
 	EntityID uint64 // The entity to transform.
@@ -18,7 +21,7 @@ type TransformEvent struct {
 	Absolute bool // True if offsets are actually absolute screen coordinates.
 }
 
-// Changes which entity a transform is parented to.
+// SetTransformParentEvent changes which entity a transform is parented to.
 // This does not change the current position of the entity.
 type SetTransformParentEvent struct {
 	EntityID uint64 // The entity whose parent should be changed.
@@ -28,7 +31,9 @@ type SetTransformParentEvent struct {
 type eTransform struct{ *Transform }
 type eTransformParent struct{ EntityID uint64 }
 
-func TransformSystem(e *ECS) {
+// TransformSystem keeps track of the transformation of entities and parenting of entity positions to those of other
+// entities.
+func TransformSystem(e *ecs.ECS) {
 	events := e.Subscribe()
 	entities := make(map[uint64]eTransform)
 	parents := make(map[uint64][]eTransformParent)
@@ -37,8 +42,8 @@ func TransformSystem(e *ECS) {
 
 		for ev := range events {
 			switch event := ev.Event.(type) {
-			case EntityAddedEvent:
-				addedSet := UnpackEntity(event, &entities)
+			case ecs.EntityAddedEvent:
+				addedSet := ecs.UnpackEntity(event, &entities)
 				if addedSet == nil {
 					break
 				}
@@ -50,7 +55,7 @@ func TransformSystem(e *ECS) {
 					setParent(&entities, &parents, event.ID, tempParentID)
 				}
 
-			case EntityRemovedEvent:
+			case ecs.EntityRemovedEvent:
 				// Change the parent to no-parent so that the entity is removed from any child lists.
 				if entity, ok := entities[event.ID]; ok && entity.ParentID != 0 {
 					setParent(&entities, &parents, event.ID, 0)
@@ -61,7 +66,7 @@ func TransformSystem(e *ECS) {
 					delete(parents, event.ID)
 				}
 
-				RemoveEntity(event.ID, &entities)
+				ecs.RemoveEntity(event.ID, &entities)
 
 			case SetTransformParentEvent:
 				setParent(&entities, &parents, event.EntityID, event.ParentID)

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/emctague/go-loopy/ecs"
+	"github.com/emctague/go-loopy/systems"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"golang.org/x/image/colornames"
@@ -17,66 +19,66 @@ func main() {
 			log.Fatal(err)
 		}
 
-		e := NewECS()
+		e := ecs.NewECS()
 
 		// Add all systems
-		TransformSystem(&e)
-		PhysicsSystem(&e, win)
-		PlayerSystem(&e, win)
-		ParticleSystem(&e)
-		BalanceSystem(&e)
-		InteractiveSystem(&e, win)
+		systems.TransformSystem(&e)
+		systems.PhysicsSystem(&e, win)
+		systems.PlayerSystem(&e, win)
+		systems.ParticleSystem(&e)
+		systems.BalanceSystem(&e)
+		systems.InteractiveSystem(&e, win)
 
 		// The render system needs to run on the main thread, so we let it transfer our setup to a goroutine.
-		RenderSystem(&e, win, func() {
+		systems.RenderSystem(&e, win, func() {
 
 			// Create player entity. The wallet is stored separately so that it can be interacted with from the NPC
 			// scripts provided below.
-			pWallet := &Wallet{100}
-			player := e.AddEntity(&Transform{20, 20, 0},
+			pWallet := &systems.Wallet{Balance: 100}
+			player := e.AddEntity(&systems.Transform{X: 20, Y: 20},
 				pWallet,
-				&Physics{0, 0},
-				&Player{}, &Interactor{},
-				&DebugCircle{colornames.Green, 10})
+				&systems.Physics{},
+				&systems.Player{}, &systems.Interactor{},
+				&systems.DebugCircle{Color: colornames.Green, Radius: 10})
 
 			// ESPECIALLY UGLY CODE AHEAD
 			// YOU HAVE BEEN WARNED
 
 			// Add an interactve entity with an ugly hardcoded dialog script
-			e.AddEntity(&Transform{200, 200, 0}, &Interactive{
-				"[space] talk", "Alice",
-				IMenu("Hi, what's your name?",
-					"Ethan", IMenu("I'm not sure I believe you...", "*leave*", nil),
-					"Alice", IMenu("Hey, that's *my* name!", "*leave*", nil),
-					"None of your business!", func(ev EventContainer) *InteractionMenu {
-						ev.Next <- BalanceChangeEvent{player, -pWallet.Balance}
-						return IMenu("OK, jerk.",
-							"...", IMenu("Just for that...",
-								"...", IMenu("I'm stealing your wallet.", "*leave*", nil)))(ev)
+			e.AddEntity(&systems.Transform{200, 200, 0}, &systems.Interactive{
+				Prompt: "[space] talk", Name: "Alice",
+				Menu: systems.IMenu("Hi, what's your name?",
+					"Ethan", systems.IMenu("I'm not sure I believe you...", "*leave*", nil),
+					"Alice", systems.IMenu("Hey, that's *my* name!", "*leave*", nil),
+					"None of your business!", func(ev ecs.EventContainer) *systems.InteractionMenu {
+						ev.Next <- systems.BalanceChangeEvent{ID: player, Change: -pWallet.Balance}
+						return systems.IMenu("OK, jerk.",
+							"...", systems.IMenu("Just for that...",
+								"...", systems.IMenu("I'm stealing your wallet.", "*leave*", nil)))(ev)
 					}),
-			}, &DebugCircle{colornames.Aliceblue, 10})
+			}, &systems.DebugCircle{Color: colornames.Aliceblue, Radius: 10})
 
 			// Another ugly interactive entity script
-			var watchuWant func(EventContainer) *InteractionMenu
-			watchuWant = IMenu("What would you like??",
-				"Cash", func(ev EventContainer) *InteractionMenu {
-					ev.Next <- BalanceChangeEvent{player, 200}
-					return IMenu("...fine. Here's $200. Your balance is now $"+strconv.Itoa(pWallet.Balance+200),
+			var watchuWant func(ecs.EventContainer) *systems.InteractionMenu
+			watchuWant = systems.IMenu("What would you like??",
+				"Cash", func(ev ecs.EventContainer) *systems.InteractionMenu {
+					ev.Next <- systems.BalanceChangeEvent{ID: player, Change: 200}
+					return systems.IMenu("...fine. Here's $200. Your balance is now $"+strconv.Itoa(pWallet.Balance+200),
 						"Wow, awesome!", watchuWant)(ev)
 				},
-				"Food", func(ev EventContainer) *InteractionMenu {
+				"Food", func(ev ecs.EventContainer) *systems.InteractionMenu {
 					if pWallet.Balance >= 20 {
-						ev.Next <- BalanceChangeEvent{player, -20}
-						return IMenu("Here you go! Your balance is now $"+strconv.Itoa(pWallet.Balance-20), "Wow, thanks!", watchuWant)(ev)
+						ev.Next <- systems.BalanceChangeEvent{ID: player, Change: -20}
+						return systems.IMenu("Here you go! Your balance is now $"+strconv.Itoa(pWallet.Balance-20), "Wow, thanks!", watchuWant)(ev)
 					} else {
-						return IMenu("Man, you're broke! You only have $"+strconv.Itoa(pWallet.Balance), "...ok?", watchuWant)(ev)
+						return systems.IMenu("Man, you're broke! You only have $"+strconv.Itoa(pWallet.Balance), "...ok?", watchuWant)(ev)
 					}
 				},
 				"*leave*", nil,
 			)
 
-			e.AddEntity(&Transform{500, 300, 0}, &DebugCircle{colornames.Goldenrod, 10},
-				&Interactive{"[space] talk", "Rod", watchuWant})
+			e.AddEntity(&systems.Transform{X: 500, Y: 300}, &systems.DebugCircle{Color: colornames.Goldenrod, Radius: 10},
+				&systems.Interactive{Prompt: "[space] talk", Name: "Rod", Menu: watchuWant})
 
 			e.Run()
 		})

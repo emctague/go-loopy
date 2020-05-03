@@ -1,9 +1,11 @@
-package main
+package systems
 
 import (
+	"github.com/emctague/go-loopy/ecs"
 	"github.com/faiface/pixel/pixelgl"
 )
 
+// Player is a component which signifies that an entity is the player.
 type Player struct{}
 
 type ePlayer struct {
@@ -13,8 +15,9 @@ type ePlayer struct {
 	*Interactor
 }
 
-var PlayerSystem = func(e *ECS, win *pixelgl.Window) {
-	BehaviorSystem(func(e *ECS, ev EventContainer, delta float64, entityID uint64, player ePlayer) {
+// PlayerSystem is a system which handles basic player controls
+var PlayerSystem = func(e *ecs.ECS, win *pixelgl.Window) {
+	ecs.BehaviorSystem(func(e *ecs.ECS, ev ecs.EventContainer, delta float64, entityID uint64, player ePlayer) {
 		// Don't deal with movement in menus.
 		if player.Menu != nil {
 			return
@@ -37,7 +40,7 @@ var PlayerSystem = func(e *ECS, win *pixelgl.Window) {
 
 		// Store the new velocity.
 		if velX != 0 || velY != 0 {
-			ev.Next <- ApplyVelocityEvent{entityID, velX, velY}
+			ev.Next <- ApplyVelocityEvent{EntityID: entityID, VelX: velX, VelY: velY}
 		}
 	})(e)
 }

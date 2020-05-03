@@ -1,6 +1,7 @@
-package main
+package systems
 
 import (
+	"github.com/emctague/go-loopy/ecs"
 	"github.com/faiface/pixel/pixelgl"
 	"log"
 )
@@ -16,7 +17,7 @@ type ApplyVelocityEvent struct {
 	VelY     float64
 }
 
-func PhysicsSystem(e *ECS, win *pixelgl.Window) {
+func PhysicsSystem(e *ecs.ECS, win *pixelgl.Window) {
 	type ComponentSet struct {
 		*Transform
 		*Physics
@@ -27,11 +28,11 @@ func PhysicsSystem(e *ECS, win *pixelgl.Window) {
 	go func() {
 		for ev := range events {
 			switch event := ev.Event.(type) {
-			case EntityAddedEvent:
-				UnpackEntity(event, &entities)
+			case ecs.EntityAddedEvent:
+				ecs.UnpackEntity(event, &entities)
 
-			case EntityRemovedEvent:
-				RemoveEntity(event.ID, &entities)
+			case ecs.EntityRemovedEvent:
+				ecs.RemoveEntity(event.ID, &entities)
 
 			case ApplyVelocityEvent:
 				ent, ok := entities[event.EntityID]
@@ -41,7 +42,7 @@ func PhysicsSystem(e *ECS, win *pixelgl.Window) {
 				ent.VelX += event.VelX
 				ent.VelY += event.VelY
 
-			case UpdateBeginEvent:
+			case ecs.UpdateBeginEvent:
 				for eid, entity := range entities {
 
 					if entity.Y+entity.VelY*event.Delta < 20 {

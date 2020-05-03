@@ -1,7 +1,8 @@
-package main
+package systems
 
 import (
 	"fmt"
+	"github.com/emctague/go-loopy/ecs"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
@@ -37,7 +38,7 @@ type eHudText struct {
 	*Transform
 }
 
-func RenderSystem(e *ECS, win *pixelgl.Window, whenReady func()) {
+func RenderSystem(e *ecs.ECS, win *pixelgl.Window, whenReady func()) {
 	imd := imdraw.New(nil)
 
 	debugRenderables := make(map[uint64]eDebugRenderable)
@@ -52,21 +53,21 @@ func RenderSystem(e *ECS, win *pixelgl.Window, whenReady func()) {
 
 	for ev := range events {
 		switch event := ev.Event.(type) {
-		case EntityAddedEvent:
-			UnpackEntity(event, &debugRenderables)
-			UnpackEntity(event, &hudLines)
+		case ecs.EntityAddedEvent:
+			ecs.UnpackEntity(event, &debugRenderables)
+			ecs.UnpackEntity(event, &hudLines)
 
-		case EntityRemovedEvent:
-			RemoveEntity(event.ID, &debugRenderables)
-			RemoveEntity(event.ID, &hudLines)
+		case ecs.EntityRemovedEvent:
+			ecs.RemoveEntity(event.ID, &debugRenderables)
+			ecs.RemoveEntity(event.ID, &hudLines)
 
-		case UpdateBeginEvent:
+		case ecs.UpdateBeginEvent:
 
 			if win.Closed() {
 				e.Stop()
 			}
 
-		case UpdateEndEvent:
+		case ecs.UpdateEndEvent:
 
 			win.Clear(color.RGBA{A: 255})
 

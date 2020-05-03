@@ -1,10 +1,12 @@
-package main
+package ecs
 
 import (
 	"reflect"
 )
 
-// Shorthand for simple systems that only keep track of one type of entity, and only perform operations in Update.
+// BehaviorSystem is a shorthand for simple systems that only keep track of one type of entity, and only perform
+// operations in Update.
+//
 // updater: func(e *ECS, ev EventContainer, delta float64, entityID uint64, componentSet interface{})
 func BehaviorSystem(updater interface{}) func(e *ECS) {
 	return func(e *ECS) {

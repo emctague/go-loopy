@@ -1,50 +1,54 @@
-package main
+package systems
 
 import (
+	"github.com/emctague/go-loopy/ecs"
 	"github.com/faiface/pixel/pixelgl"
 	"math"
 	"strconv"
 )
 
-// Once choice in a menu - has a label to describe what the interactor is selecting / saying, and a function which
-// performs some actions and then returns another menu, or nil to exit the menus. The Action function itself may also
-// be nil to just exit.
-type MenuChoice struct {
+// menuChoice represents one choice in an interactive menu.
+// It has a label to describe what the interactor is selecting / saying, and a function which performs some actions and
+// then returns another menu, or nil to exit the menus.
+// The Action function itself may also be nil to just exit when selected.
+type menuChoice struct {
 	Label  string
-	Action func(EventContainer) *InteractionMenu
+	Action func(ecs.EventContainer) *InteractionMenu
 }
 
-// Represents a menu with a prompt and several selectable options.
+// InteractionMenu represents a menu with a prompt and several selectable options.
 type InteractionMenu struct {
 	Prompt  string
-	Choices []MenuChoice
+	Choices []menuChoice
 }
 
-// Some entity that can be interacted with by an interactor, resulting in some menu appearing.
+// Interactive is a component placed upon entities that can be interacted with by an interactor, resulting in some menu
+// appearing.
 type Interactive struct {
-	Prompt string                                // The prompt line describes the action and trigger, e.g. "[space] Talk"
-	Name   string                                // The in-world name of the entity, e.g. "Jeff".
-	Menu   func(EventContainer) *InteractionMenu // A function that performs some action and opens a menu.
+	Prompt string                                    // The prompt line describes the action and trigger, e.g. "[space] Talk"
+	Name   string                                    // The in-world name of the entity, e.g. "Jeff".
+	Menu   func(ecs.EventContainer) *InteractionMenu // A function that performs some action and opens a menu.
 }
 
-// Some entity that can interact with others, interrupting its flow with a menu.
+// Interactor is a component placed upon entities that can interact with others, interrupting its flow with a menu.
 type Interactor struct {
 	InMenu            bool             // True if a menu is currently active.
 	Menu              *InteractionMenu // A pointer to the currently active menu.
 	NearbyInteractive uint64           // The ID of a nearby interactive, or 0 if nothing is in range
 }
 
-// Shorthand to construct a menu screen. The first argument is the prompt for the menu, following arguments are pairs of
-// choice labels and their action functions (see MenuChoice.)
-func IMenu(message string, args ...interface{}) func(EventContainer) *InteractionMenu {
-	return func(ev EventContainer) *InteractionMenu {
-		menu := &InteractionMenu{message, []MenuChoice{}}
+// IMenu is Shorthand to construct a menu screen.
+// The first argument is the prompt for the menu, followed by pairs of choice labels and their action functions
+// (see menuChoice.)
+func IMenu(message string, args ...interface{}) func(ecs.EventContainer) *InteractionMenu {
+	return func(ev ecs.EventContainer) *InteractionMenu {
+		menu := &InteractionMenu{message, []menuChoice{}}
 
 		for i := 0; i < len(args); i += 2 {
 			if args[i+1] == nil {
-				menu.Choices = append(menu.Choices, MenuChoice{args[i].(string), nil})
+				menu.Choices = append(menu.Choices, menuChoice{args[i].(string), nil})
 			} else {
-				menu.Choices = append(menu.Choices, MenuChoice{args[i].(string), args[i+1].(func(EventContainer) *InteractionMenu)})
+				menu.Choices = append(menu.Choices, menuChoice{args[i].(string), args[i+1].(func(ecs.EventContainer) *InteractionMenu)})
 			}
 		}
 
@@ -61,7 +65,8 @@ type eInteractive struct {
 	*Interactive
 }
 
-func InteractiveSystem(e *ECS, win *pixelgl.Window) {
+// InteractiveSystem handles interactive in-game menus.
+func InteractiveSystem(e *ecs.ECS, win *pixelgl.Window) {
 
 	primaryLabel := &HUDLine{"", true, 2, 0}
 	var ePrimaryLabel uint64
@@ -78,19 +83,19 @@ func InteractiveSystem(e *ECS, win *pixelgl.Window) {
 	go func() {
 		for ev := range events {
 			switch event := ev.Event.(type) {
-			case SetupEvent:
+			case ecs.SetupEvent:
 				eSecondaryLabel = e.AddEntity(secondaryLabel, tSecondaryLabel)
 				ePrimaryLabel = e.AddEntity(primaryLabel, &Transform{0, 20, eSecondaryLabel})
 
-			case EntityAddedEvent:
-				UnpackEntity(event, &interactors)
-				UnpackEntity(event, &interactives)
+			case ecs.EntityAddedEvent:
+				ecs.UnpackEntity(event, &interactors)
+				ecs.UnpackEntity(event, &interactives)
 
-			case EntityRemovedEvent:
-				RemoveEntity(event.ID, &interactors)
-				RemoveEntity(event.ID, &interactives)
+			case ecs.EntityRemovedEvent:
+				ecs.RemoveEntity(event.ID, &interactors)
+				ecs.RemoveEntity(event.ID, &interactives)
 
-			case UpdateBeginEvent:
+			case ecs.UpdateBeginEvent:
 
 				for _, interactor := range interactors {
 
