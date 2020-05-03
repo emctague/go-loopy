@@ -12,18 +12,21 @@ import (
 	"log"
 )
 
+// HUDLine is a component which provides a line of text on-screen above all other content.
 type HUDLine struct {
-	Prompt   string
-	Centered bool
-	FontSize float64
-	Width    float64
+	Prompt   string  // The contents of the HUD line.
+	Centered bool    // Whether or not the line is centered horizontally on the transform position.
+	FontSize float64 // The font size as a multiplier.
+	width    float64 // The width of the HUDLine with its current prompt value. This is used for centering.
 }
 
+// DebugCircle is a component which defines a colored circle to be drawn on-screen by the renderer.
 type DebugCircle struct {
 	Color  color.Color
 	Radius float64
 }
 
+// ChangeHUDPromptEvent represents a request to change the prompt string of a HUDLine.
 type ChangeHUDPromptEvent struct {
 	ID     uint64
 	Prompt string
@@ -33,11 +36,16 @@ type eDebugRenderable struct {
 	*DebugCircle
 	*Transform
 }
+
 type eHudText struct {
 	*HUDLine
 	*Transform
 }
 
+// RenderSystem is a system which draws to the screen.
+// Unlike other systems, the RenderSystem does not run itself in a goroutine - because PixelGL requires rendering to
+// occur in the main thread, RenderSystem takes it over and runs the passed whenReady function in a goroutine, where
+// the user of the RenderSystem may continue setup.
 func RenderSystem(e *ecs.ECS, win *pixelgl.Window, whenReady func()) {
 	imd := imdraw.New(nil)
 
@@ -73,26 +81,26 @@ func RenderSystem(e *ecs.ECS, win *pixelgl.Window, whenReady func()) {
 
 			imd.Clear()
 
-			for _, e := range debugRenderables {
-				imd.Color = e.Color
-				imd.Push(pixel.V(e.X, e.Y))
-				imd.Circle(e.Radius, 0)
-
+			// Draw all debug circles
+			for _, renderable := range debugRenderables {
+				imd.Color = renderable.Color
+				imd.Push(pixel.V(renderable.X, renderable.Y))
+				imd.Circle(renderable.Radius, 0)
 			}
 
 			imd.Draw(win)
 
+			// Draw all HUD lines
 			for _, hudLine := range hudLines {
 				txt.Clear()
 
 				if hudLine.Centered {
-					txt.Dot.X -= hudLine.Width / 2
+					txt.Dot.X -= hudLine.width / 2
 				}
 
 				_, _ = fmt.Fprintln(txt, hudLine.Prompt)
 
 				win.SetMatrix(pixel.IM.Moved(pixel.V(hudLine.X, hudLine.Y)))
-
 				txt.Draw(win, pixel.IM.Scaled(txt.Orig, hudLine.FontSize))
 			}
 
@@ -112,12 +120,12 @@ func RenderSystem(e *ecs.ECS, win *pixelgl.Window, whenReady func()) {
 			line.HUDLine.Prompt = event.Prompt
 
 			if event.Prompt == "" {
-				line.Width = 0
+				line.width = 0
 				break
 			}
 
 			txt.Clear()
-			line.Width = txt.BoundsOf(line.Prompt).W()
+			line.width = txt.BoundsOf(line.Prompt).W()
 
 		}
 

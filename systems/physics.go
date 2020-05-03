@@ -6,17 +6,20 @@ import (
 	"log"
 )
 
+// Physics is a component which specifies that an entity should be affected by the physics system.
 type Physics struct {
 	VelX float64
 	VelY float64
 }
 
+// ApplyVelocityEvent is used to add instantaneous velocity to an entity.
 type ApplyVelocityEvent struct {
 	EntityID uint64
 	VelX     float64
 	VelY     float64
 }
 
+// PhysicsSystem handles object physics (velocity, etc.)
 func PhysicsSystem(e *ecs.ECS, win *pixelgl.Window) {
 	type ComponentSet struct {
 		*Transform

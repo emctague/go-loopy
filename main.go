@@ -70,9 +70,9 @@ func main() {
 					if pWallet.Balance >= 20 {
 						ev.Next <- systems.BalanceChangeEvent{ID: player, Change: -20}
 						return systems.IMenu("Here you go! Your balance is now $"+strconv.Itoa(pWallet.Balance-20), "Wow, thanks!", watchuWant)(ev)
-					} else {
-						return systems.IMenu("Man, you're broke! You only have $"+strconv.Itoa(pWallet.Balance), "...ok?", watchuWant)(ev)
 					}
+
+					return systems.IMenu("Man, you're broke! You only have $"+strconv.Itoa(pWallet.Balance), "...ok?", watchuWant)(ev)
 				},
 				"*leave*", nil,
 			)
