@@ -44,36 +44,28 @@ func main() {
 
 			e.AddEntity(&systems.Transform{X: 200, Y: 200}, &systems.Interactive{
 				Prompt: "[space] Talk", Name: "Alice",
-				Menu: utils.MakeDialogScript(func(choices chan int, prompt utils.PromptTool, ev **ecs.EventContainer) {
-					prompt("Hi, what's your name?", "Ethan", "Alice")
-
-					switch <-choices {
+				Menu: utils.MakeDialogScript(func(prompt utils.PromptTool, ev **ecs.EventContainer) {
+					switch prompt("Hi, what's your name?", "Ethan", "Alice") {
 					case 0:
 						prompt("I'm not sure I believe you!", "...ok?")
 
 					case 1:
-						prompt("Hey, that's *my* name!", "Well it's mine too!", "uh... nice to know")
-
-						switch <-choices {
+						switch prompt("Hey, that's *my* name!", "Well it's mine too!", "uh... nice to know") {
 						case 0:
 							prompt("Fineeee, we can share...", "...Bye!")
 						case 1:
 							prompt("Yeah, isn't it?", "...I am so confused...")
 						}
 					}
-
-					<-choices
 				}),
 			}, &systems.DebugCircle{Color: colornames.Aliceblue, Radius: 10})
 
 			e.AddEntity(&systems.Transform{X: 500, Y: 300}, &systems.DebugCircle{Color: colornames.Goldenrod, Radius: 10},
 				&systems.Interactive{
 					Prompt: "[space] talk", Name: "Rod",
-					Menu: utils.MakeDialogScript(func(choices chan int, prompt utils.PromptTool, ev **ecs.EventContainer) {
+					Menu: utils.MakeDialogScript(func(prompt utils.PromptTool, ev **ecs.EventContainer) {
 						for {
-							prompt("What would you like?", "One million dollars!", "Food.", "For you to go away, weirdo...")
-
-							switch <-choices {
+							switch prompt("What would you like?", "One million dollars!", "Food.", "For you to go away, weirdo...") {
 							case 0:
 								(*ev).Next <- systems.BalanceChangeEvent{ID: player, Change: 50}
 								prompt("Here's 50, stop complaining.", "...Fine")
@@ -89,8 +81,6 @@ func main() {
 							case 2:
 								return
 							}
-
-							<-choices
 						}
 					}),
 				})
