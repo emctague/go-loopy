@@ -65,86 +65,65 @@ type eInteractive struct {
 	*Interactive
 }
 
+type interactiveContext struct {
+	primaryLabel  *HUDLine
+	ePrimaryLabel uint64
+
+	secondaryLabel  *HUDLine
+	tSecondaryLabel *Transform
+	eSecondaryLabel uint64
+
+	interactors  map[uint64]eInteractor
+	interactives map[uint64]eInteractive
+
+	events chan ecs.EventContainer
+
+	e   *ecs.ECS
+	win *pixelgl.Window
+}
+
 // InteractiveSystem handles interactive in-game menus.
 func InteractiveSystem(e *ecs.ECS, win *pixelgl.Window) {
 
-	primaryLabel := &HUDLine{"", true, 2, 0}
-	var ePrimaryLabel uint64
+	var ctx = interactiveContext{
+		primaryLabel: &HUDLine{Centered: true, FontSize: 2},
 
-	secondaryLabel := &HUDLine{"", true, 1.5, 0}
-	tSecondaryLabel := &Transform{0, 0, 0}
-	var eSecondaryLabel uint64
+		secondaryLabel:  &HUDLine{Centered: true, FontSize: 1.5},
+		tSecondaryLabel: &Transform{},
 
-	interactors := make(map[uint64]eInteractor)
-	interactives := make(map[uint64]eInteractive)
+		interactors:  make(map[uint64]eInteractor),
+		interactives: make(map[uint64]eInteractive),
 
-	events := e.Subscribe()
+		events: e.Subscribe(),
+
+		e:   e,
+		win: win,
+	}
 
 	go func() {
-		for ev := range events {
+		for ev := range ctx.events {
 			switch event := ev.Event.(type) {
 			case ecs.SetupEvent:
-				eSecondaryLabel = e.AddEntity(secondaryLabel, tSecondaryLabel)
-				ePrimaryLabel = e.AddEntity(primaryLabel, &Transform{0, 20, eSecondaryLabel})
+				ctx.eSecondaryLabel = e.AddEntity(ctx.secondaryLabel, ctx.tSecondaryLabel)
+				ctx.ePrimaryLabel = e.AddEntity(ctx.primaryLabel, &Transform{0, 20, ctx.eSecondaryLabel})
 
 			case ecs.EntityAddedEvent:
-				ecs.UnpackEntity(event, &interactors)
-				ecs.UnpackEntity(event, &interactives)
+				ecs.UnpackEntity(event, &ctx.interactors)
+				ecs.UnpackEntity(event, &ctx.interactives)
 
 			case ecs.EntityRemovedEvent:
-				ecs.RemoveEntity(event.ID, &interactors)
-				ecs.RemoveEntity(event.ID, &interactives)
+				ecs.RemoveEntity(event.ID, &ctx.interactors)
+				ecs.RemoveEntity(event.ID, &ctx.interactives)
 
 			case ecs.UpdateBeginEvent:
 
-				for _, interactor := range interactors {
+				for _, interactor := range ctx.interactors {
 
+					// Deal with the interactor differently if it's already in a menu.
 					if interactor.InMenu {
-
-						secondaryLabel.Centered = false
-						ev.Next <- ChangeHUDPromptEvent{ePrimaryLabel, interactor.Menu.Prompt}
-
-						choiceList := ""
-						for i, choice := range interactor.Menu.Choices {
-							choiceList += strconv.Itoa(i+1) + ") " + choice.Label + "\n"
-
-							if win.JustPressed(pixelgl.Key1+pixelgl.Button(i)) || len(interactor.Menu.Choices) == 1 && win.JustPressed(pixelgl.KeySpace) {
-								if choice.Action == nil {
-									interactor.Menu = nil
-								} else {
-									interactor.Menu = choice.Action(ev)
-								}
-
-								if interactor.Menu == nil {
-									interactor.InMenu = false
-								}
-
-								break
-							}
-						}
-
-						ev.Next <- ChangeHUDPromptEvent{eSecondaryLabel, choiceList}
-
+						ctx.handleInteractorInMenu(ev, interactor)
 					} else {
-
-						secondaryLabel.Centered = true
-						niid, nearestInteractive := findNearestInteractive(interactor, &interactives)
-
-						if niid == 0 {
-							ev.Next <- ChangeHUDPromptEvent{ePrimaryLabel, ""}
-							ev.Next <- ChangeHUDPromptEvent{eSecondaryLabel, ""}
-						} else {
-							ev.Next <- TransformEvent{eSecondaryLabel, nearestInteractive.X, nearestInteractive.Y + 40, true}
-							ev.Next <- ChangeHUDPromptEvent{ePrimaryLabel, nearestInteractive.Name}
-							ev.Next <- ChangeHUDPromptEvent{eSecondaryLabel, nearestInteractive.Prompt}
-
-							if win.JustPressed(pixelgl.KeySpace) {
-								interactor.InMenu = true
-								interactor.NearbyInteractive = 0
-								interactor.Menu = nearestInteractive.Menu(ev)
-							}
-						}
-
+						ctx.handleInteractorInGame(ev, interactor)
 					}
 				}
 			}
@@ -154,9 +133,61 @@ func InteractiveSystem(e *ecs.ECS, win *pixelgl.Window) {
 	}()
 }
 
-func findNearestInteractive(interactor eInteractor, interactives *map[uint64]eInteractive) (uint64, eInteractive) {
+// handleInteractorInMenu handles user input during an interaction with an interactive.
+func (ctx *interactiveContext) handleInteractorInMenu(ev ecs.EventContainer, interactor eInteractor) {
+	ctx.secondaryLabel.Centered = false
+	ev.Next <- ChangeHUDPromptEvent{ctx.ePrimaryLabel, interactor.Menu.Prompt}
+
+	choiceList := ""
+	for i, choice := range interactor.Menu.Choices {
+		choiceList += strconv.Itoa(i+1) + ") " + choice.Label + "\n"
+
+		if ctx.win.JustPressed(pixelgl.Key1+pixelgl.Button(i)) ||
+			(len(interactor.Menu.Choices) == 1 && ctx.win.JustPressed(pixelgl.KeySpace)) {
+
+			if choice.Action == nil {
+				interactor.Menu = nil
+			} else {
+				interactor.Menu = choice.Action(ev)
+			}
+
+			if interactor.Menu == nil {
+				interactor.InMenu = false
+			}
+
+			break
+		}
+	}
+
+	ev.Next <- ChangeHUDPromptEvent{ctx.eSecondaryLabel, choiceList}
+}
+
+// handleInteractorInGame handles button prompt HUDs for interactives during gameplay.
+func (ctx *interactiveContext) handleInteractorInGame(ev ecs.EventContainer, interactor eInteractor) {
+	ctx.secondaryLabel.Centered = true
+	niid, nearestInteractive := ctx.findNearestInteractive(interactor)
+
+	if niid == 0 {
+		ev.Next <- ChangeHUDPromptEvent{ctx.ePrimaryLabel, ""}
+		ev.Next <- ChangeHUDPromptEvent{ctx.eSecondaryLabel, ""}
+	} else {
+		ev.Next <- TransformEvent{ctx.eSecondaryLabel, nearestInteractive.X, nearestInteractive.Y + 40, true}
+		ev.Next <- ChangeHUDPromptEvent{ctx.ePrimaryLabel, nearestInteractive.Name}
+		ev.Next <- ChangeHUDPromptEvent{ctx.eSecondaryLabel, nearestInteractive.Prompt}
+
+		if ctx.win.JustPressed(pixelgl.KeySpace) {
+			interactor.InMenu = true
+			interactor.NearbyInteractive = 0
+			interactor.Menu = nearestInteractive.Menu(ev)
+		}
+	}
+}
+
+// findNearestInteractive locates an arbitrary interactive component within interaction range of the given interactor.
+// It will return 0 if no such components are found.
+func (ctx *interactiveContext) findNearestInteractive(interactor eInteractor) (uint64, eInteractive) {
 	// Identify nearest interactive
-	for iid, interactive := range *interactives {
+	for iid, interactive := range ctx.interactives {
 		if math.Hypot(interactive.X-interactor.X, interactive.Y-interactor.Y) < 100 {
 			return iid, interactive
 		}
