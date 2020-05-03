@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/emctague/go-loopy/ecs"
 	"github.com/emctague/go-loopy/systems"
+	"github.com/emctague/go-loopy/utils"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"golang.org/x/image/colornames"
@@ -41,44 +42,58 @@ func main() {
 				&systems.Player{}, &systems.Interactor{},
 				&systems.DebugCircle{Color: colornames.Green, Radius: 10})
 
-			// ESPECIALLY UGLY CODE AHEAD
-			// YOU HAVE BEEN WARNED
+			e.AddEntity(&systems.Transform{X: 200, Y: 200}, &systems.Interactive{
+				Prompt: "[space] Talk", Name: "Alice",
+				Menu: utils.MakeDialogScript(func(choices chan int, prompt utils.PromptTool, ev **ecs.EventContainer) {
+					prompt("Hi, what's your name?", "Ethan", "Alice")
 
-			// Add an interactve entity with an ugly hardcoded dialog script
-			e.AddEntity(&systems.Transform{200, 200, 0}, &systems.Interactive{
-				Prompt: "[space] talk", Name: "Alice",
-				Menu: systems.IMenu("Hi, what's your name?",
-					"Ethan", systems.IMenu("I'm not sure I believe you...", "*leave*", nil),
-					"Alice", systems.IMenu("Hey, that's *my* name!", "*leave*", nil),
-					"None of your business!", func(ev ecs.EventContainer) *systems.InteractionMenu {
-						ev.Next <- systems.BalanceChangeEvent{ID: player, Change: -pWallet.Balance}
-						return systems.IMenu("OK, jerk.",
-							"...", systems.IMenu("Just for that...",
-								"...", systems.IMenu("I'm stealing your wallet.", "*leave*", nil)))(ev)
-					}),
-			}, &systems.DebugCircle{Color: colornames.Aliceblue, Radius: 10})
+					switch <-choices {
+					case 0:
+						prompt("I'm not sure I believe you!", "...ok?")
 
-			// Another ugly interactive entity script
-			var watchuWant func(ecs.EventContainer) *systems.InteractionMenu
-			watchuWant = systems.IMenu("What would you like??",
-				"Cash", func(ev ecs.EventContainer) *systems.InteractionMenu {
-					ev.Next <- systems.BalanceChangeEvent{ID: player, Change: 200}
-					return systems.IMenu("...fine. Here's $200. Your balance is now $"+strconv.Itoa(pWallet.Balance+200),
-						"Wow, awesome!", watchuWant)(ev)
-				},
-				"Food", func(ev ecs.EventContainer) *systems.InteractionMenu {
-					if pWallet.Balance >= 20 {
-						ev.Next <- systems.BalanceChangeEvent{ID: player, Change: -20}
-						return systems.IMenu("Here you go! Your balance is now $"+strconv.Itoa(pWallet.Balance-20), "Wow, thanks!", watchuWant)(ev)
+					case 1:
+						prompt("Hey, that's *my* name!", "Well it's mine too!", "uh... nice to know")
+
+						switch <-choices {
+						case 0:
+							prompt("Fineeee, we can share...", "...Bye!")
+						case 1:
+							prompt("Yeah, isn't it?", "...I am so confused...")
+						}
 					}
 
-					return systems.IMenu("Man, you're broke! You only have $"+strconv.Itoa(pWallet.Balance), "...ok?", watchuWant)(ev)
-				},
-				"*leave*", nil,
-			)
+					<-choices
+				}),
+			}, &systems.DebugCircle{Color: colornames.Aliceblue, Radius: 10})
 
 			e.AddEntity(&systems.Transform{X: 500, Y: 300}, &systems.DebugCircle{Color: colornames.Goldenrod, Radius: 10},
-				&systems.Interactive{Prompt: "[space] talk", Name: "Rod", Menu: watchuWant})
+				&systems.Interactive{
+					Prompt: "[space] talk", Name: "Rod",
+					Menu: utils.MakeDialogScript(func(choices chan int, prompt utils.PromptTool, ev **ecs.EventContainer) {
+						for {
+							prompt("What would you like?", "One million dollars!", "Food.", "For you to go away, weirdo...")
+
+							switch <-choices {
+							case 0:
+								(*ev).Next <- systems.BalanceChangeEvent{ID: player, Change: 50}
+								prompt("Here's 50, stop complaining.", "...Fine")
+
+							case 1:
+								if pWallet.Balance >= 20 {
+									(*ev).Next <- systems.BalanceChangeEvent{ID: player, Change: -20}
+									prompt("Here you go! Your balance is now $"+strconv.Itoa(pWallet.Balance-20), "Wow, thanks!")
+								} else {
+									prompt("You're just too damn broke.", "...Oh")
+								}
+
+							case 2:
+								return
+							}
+
+							<-choices
+						}
+					}),
+				})
 
 			e.Run()
 		})

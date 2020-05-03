@@ -7,11 +7,11 @@ import (
 	"strconv"
 )
 
-// menuChoice represents one choice in an interactive menu.
+// MenuChoice represents one choice in an interactive menu.
 // It has a label to describe what the interactor is selecting / saying, and a function which performs some actions and
 // then returns another menu, or nil to exit the menus.
 // The Action function itself may also be nil to just exit when selected.
-type menuChoice struct {
+type MenuChoice struct {
 	Label  string
 	Action func(ecs.EventContainer) *InteractionMenu
 }
@@ -19,7 +19,7 @@ type menuChoice struct {
 // InteractionMenu represents a menu with a prompt and several selectable options.
 type InteractionMenu struct {
 	Prompt  string
-	Choices []menuChoice
+	Choices []MenuChoice
 }
 
 // Interactive is a component placed upon entities that can be interacted with by an interactor, resulting in some menu
@@ -35,25 +35,6 @@ type Interactor struct {
 	InMenu            bool             // True if a menu is currently active.
 	Menu              *InteractionMenu // A pointer to the currently active menu.
 	NearbyInteractive uint64           // The ID of a nearby interactive, or 0 if nothing is in range
-}
-
-// IMenu is Shorthand to construct a menu screen.
-// The first argument is the prompt for the menu, followed by pairs of choice labels and their action functions
-// (see menuChoice.)
-func IMenu(message string, args ...interface{}) func(ecs.EventContainer) *InteractionMenu {
-	return func(ev ecs.EventContainer) *InteractionMenu {
-		menu := &InteractionMenu{message, []menuChoice{}}
-
-		for i := 0; i < len(args); i += 2 {
-			if args[i+1] == nil {
-				menu.Choices = append(menu.Choices, menuChoice{args[i].(string), nil})
-			} else {
-				menu.Choices = append(menu.Choices, menuChoice{args[i].(string), args[i+1].(func(ecs.EventContainer) *InteractionMenu)})
-			}
-		}
-
-		return menu
-	}
 }
 
 type eInteractor struct {
