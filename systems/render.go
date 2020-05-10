@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"github.com/emctague/go-loopy/ecs"
 	"github.com/faiface/pixel"
-	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
 	"golang.org/x/image/font/basicfont"
+	"image"
 	"image/color"
+	_ "image/png"
 	"log"
+	"os"
 )
 
 // HUDLine is a component which provides a line of text on-screen above all other content.
@@ -20,10 +22,9 @@ type HUDLine struct {
 	width    float64 // The width of the HUDLine with its current prompt value. This is used for centering.
 }
 
-// DebugCircle is a component which defines a colored circle to be drawn on-screen by the renderer.
-type DebugCircle struct {
-	Color  color.Color
-	Radius float64
+// Renderable is a component which defines a colored circle to be drawn on-screen by the renderer.
+type Renderable struct {
+	Sprite *pixel.Sprite
 }
 
 // ChangeHUDPromptEvent represents a request to change the prompt string of a HUDLine.
@@ -33,7 +34,7 @@ type ChangeHUDPromptEvent struct {
 }
 
 type eDebugRenderable struct {
-	*DebugCircle
+	*Renderable
 	*Transform
 }
 
@@ -47,8 +48,6 @@ type eHudText struct {
 // occur in the main thread, RenderSystem takes it over and runs the passed whenReady function in a goroutine, where
 // the user of the RenderSystem may continue setup.
 func RenderSystem(e *ecs.ECS, win *pixelgl.Window, whenReady func()) {
-	imd := imdraw.New(nil)
-
 	debugRenderables := make(map[uint64]eDebugRenderable)
 	hudLines := make(map[uint64]eHudText)
 
@@ -77,18 +76,12 @@ func RenderSystem(e *ecs.ECS, win *pixelgl.Window, whenReady func()) {
 
 		case ecs.UpdateEndEvent:
 
-			win.Clear(color.RGBA{A: 255})
-
-			imd.Clear()
+			win.Clear(color.RGBA{R: 0, G: 0, B: 0, A: 255})
 
 			// Draw all debug circles
 			for _, renderable := range debugRenderables {
-				imd.Color = renderable.Color
-				imd.Push(pixel.V(renderable.X, renderable.Y))
-				imd.Circle(renderable.Radius, 0)
+				renderable.Sprite.Draw(win, pixel.IM.Rotated(pixel.V(0, 0), renderable.Rotation).Moved(pixel.V(renderable.X, renderable.Y)))
 			}
-
-			imd.Draw(win)
 
 			// Draw all HUD lines
 			for _, hudLine := range hudLines {
@@ -132,4 +125,18 @@ func RenderSystem(e *ecs.ECS, win *pixelgl.Window, whenReady func()) {
 		ev.Wg.Done()
 	}
 
+}
+
+// From pixelGL tutorials
+func LoadPicture(path string) (pixel.Picture, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	img, _, err := image.Decode(file)
+	if err != nil {
+		return nil, err
+	}
+	return pixel.PictureDataFromImage(img), nil
 }

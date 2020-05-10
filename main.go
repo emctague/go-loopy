@@ -6,13 +6,17 @@ import (
 	"github.com/emctague/go-loopy/utils"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
-	"golang.org/x/image/colornames"
 	"log"
 	"strconv"
 )
 
 func main() {
 	pixelgl.Run(func() {
+		pic, err := systems.LoadPicture("./sprites.png")
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		cfg := pixelgl.WindowConfig{Title: "PixelGL!!!", Bounds: pixel.R(0, 0, 1024, 768), VSync: true}
 
 		win, err := pixelgl.NewWindow(cfg)
@@ -25,10 +29,13 @@ func main() {
 		// Add all systems
 		systems.TransformSystem(&e)
 		systems.PhysicsSystem(&e, win)
-		systems.PlayerSystem(&e, win)
+		systems.PlayerSystem(&e, win, &pic)
 		systems.ParticleSystem(&e)
 		systems.BalanceSystem(&e)
 		systems.InteractiveSystem(&e, win)
+		systems.DigSystem(&e, win)
+		systems.ProjectileSystem(&e, win)
+		systems.BulletSystem(&e)
 
 		// The render system needs to run on the main thread, so we let it transfer our setup to a goroutine.
 		systems.RenderSystem(&e, win, func() {
@@ -38,11 +45,11 @@ func main() {
 			pWallet := &systems.Wallet{Balance: 100}
 			player := e.AddEntity(&systems.Transform{X: 20, Y: 20},
 				pWallet,
-				&systems.Physics{},
+				&systems.Physics{DragFactor: 0.93},
 				&systems.Player{}, &systems.Interactor{},
-				&systems.DebugCircle{Color: colornames.Green, Radius: 10})
+				&systems.Renderable{Sprite: pixel.NewSprite(pic, pixel.R(2, 3, 2+64, 3+64))})
 
-			e.AddEntity(&systems.Transform{X: 200, Y: 200}, &systems.Interactive{
+			e.AddEntity(&systems.Transform{X: 200, Y: 200, Width: 27, Height: 27}, &systems.Interactive{
 				Prompt: "[space] Talk", Name: "Alice",
 				Menu: utils.MakeDialogScript(func(prompt utils.PromptTool, ev **ecs.EventContainer) {
 					switch prompt("Hi, what's your name?", "Ethan", "Alice") {
@@ -58,9 +65,9 @@ func main() {
 						}
 					}
 				}),
-			}, &systems.DebugCircle{Color: colornames.Aliceblue, Radius: 10})
+			}, &systems.Enemy{Health: 10}, &systems.Renderable{Sprite: pixel.NewSprite(pic, pixel.R(69, 40, 69+27, 40+27))}, &systems.Diggable{1, 1})
 
-			e.AddEntity(&systems.Transform{X: 500, Y: 300}, &systems.DebugCircle{Color: colornames.Goldenrod, Radius: 10},
+			e.AddEntity(&systems.Transform{X: 500, Y: 300, Width: 27, Height: 27}, &systems.Enemy{Health: 10}, &systems.Renderable{Sprite: pixel.NewSprite(pic, pixel.R(69, 40, 69+27, 40+27))},
 				&systems.Interactive{
 					Prompt: "[space] talk", Name: "Rod",
 					Menu: utils.MakeDialogScript(func(prompt utils.PromptTool, ev **ecs.EventContainer) {

@@ -11,7 +11,7 @@ type eParticle struct {
 	*Transform
 	*Physics
 	*Particle
-	*DebugCircle
+	*Renderable
 }
 
 // ParticleSystem deals with a very specific type of onscreen particle:
@@ -24,7 +24,7 @@ var ParticleSystem = ecs.BehaviorSystem(func(e *ecs.ECS, ev ecs.EventContainer, 
 	}
 
 	// Reduce particle size
-	particle.Radius = 5 * (particle.Lifetime / 0.25)
+	//particle.Radius = 5 * (particle.Lifetime / 0.25)
 
 	// Apply velocity to the particle
 	ev.Next <- ApplyVelocityEvent{entityID, 0, -1500 * delta}

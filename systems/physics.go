@@ -8,8 +8,9 @@ import (
 
 // Physics is a component which specifies that an entity should be affected by the physics system.
 type Physics struct {
-	VelX float64
-	VelY float64
+	VelX       float64
+	VelY       float64
+	DragFactor float64
 }
 
 // ApplyVelocityEvent is used to add instantaneous velocity to an entity.
@@ -48,23 +49,8 @@ func PhysicsSystem(e *ecs.ECS, win *pixelgl.Window) {
 			case ecs.UpdateBeginEvent:
 				for eid, entity := range entities {
 
-					if entity.Y+entity.VelY*event.Delta < 20 {
-						entity.VelY = -entity.VelY * 0.5
-						entity.Y = 20
-					}
-
-					if entity.X+entity.VelX*event.Delta > win.Bounds().Max.X-20 {
-						entity.VelX = -entity.VelX
-						entity.X = win.Bounds().Max.X - 20
-					}
-
-					if entity.X+entity.VelX*event.Delta < 20 {
-						entity.VelX = -entity.VelX
-						entity.X = 20
-					}
-
-					entity.VelX *= 0.93
-					entity.VelY *= 0.93
+					entity.VelX *= entity.DragFactor
+					entity.VelY *= entity.DragFactor
 
 					ev.Next <- TransformEvent{eid, entity.VelX * event.Delta, entity.VelY * event.Delta, false}
 				}

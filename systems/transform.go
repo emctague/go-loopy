@@ -9,6 +9,9 @@ import (
 type Transform struct {
 	X        float64
 	Y        float64
+	Rotation float64
+	Width    float64
+	Height   float64
 	ParentID uint64 // This transform will follow all the same movements as its parent. Set to 0 for 'no parent'.
 }
 

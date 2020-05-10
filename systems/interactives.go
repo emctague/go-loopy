@@ -86,7 +86,7 @@ func InteractiveSystem(e *ecs.ECS, win *pixelgl.Window) {
 			switch event := ev.Event.(type) {
 			case ecs.SetupEvent:
 				ctx.eSecondaryLabel = e.AddEntity(ctx.secondaryLabel, ctx.tSecondaryLabel)
-				ctx.ePrimaryLabel = e.AddEntity(ctx.primaryLabel, &Transform{0, 20, ctx.eSecondaryLabel})
+				ctx.ePrimaryLabel = e.AddEntity(ctx.primaryLabel, &Transform{0, 20, 0, 0, 0, ctx.eSecondaryLabel})
 
 			case ecs.EntityAddedEvent:
 				ecs.UnpackEntity(event, &ctx.interactors)
